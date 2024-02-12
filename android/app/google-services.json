@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471848772810",
+    "project_id": "mis-lab3-cf789",
+    "storage_bucket": "mis-lab3-cf789.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471848772810:android:1cd6bd8b7a001b67b34033",
+        "android_client_info": {
+          "package_name": "com.example.mislab3"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAx8dRgbMsaQYbV6OGJZHSurFUjaCsxNBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
