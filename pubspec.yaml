@@ -39,7 +39,12 @@ dependencies:
   firebase_auth: ^4.17.4
   intl: ^0.19.0
   table_calendar: ^3.1.0
-  flutter_local_notifications: ^9.1.4
+  flutter_local_notifications: ^16.3.2
+  geolocator: ^11.0.0
+  location: ^5.0.3
+  google_maps_flutter: ^2.5.3
+  url_launcher: ^6.2.4
+
 
 dev_dependencies:
   flutter_test:

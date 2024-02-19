@@ -1,35 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'ExamSchedule.dart';
+import 'location_selection_screen.dart';
+import 'map_widget.dart';
 
 List<ExamSchedule> examSchedules = [
   ExamSchedule(
     subjectName: 'Strukturno Programiranje',
     dateTime: DateTime.now().add(Duration(hours: 6)),
+    location: LatLng(42.00, 21.40),
   ),
   ExamSchedule(
     subjectName: 'Mobilni Informaciski Sistemi',
     dateTime: DateTime.now().add(Duration(hours: 8)),
+    location: LatLng(42.004186212873655, 21.409531941596985),
   ),
   ExamSchedule(
     subjectName: 'Kalkulus 2',
     dateTime: DateTime.now().add(Duration(hours: 12)),
-  ),
-  ExamSchedule(
-    subjectName: 'Strukturno Programiranje',
-    dateTime: DateTime.now().add(Duration(hours: 20)),
-  ),
-  ExamSchedule(
-    subjectName: 'Mobilni Informaciski Sistemi',
-    dateTime: DateTime.now().add(Duration(hours: 24)),
-  ),
-  ExamSchedule(
-    subjectName: 'Kalkulus 2',
-    dateTime: DateTime.now().add(Duration(hours: 35)),
+    location: LatLng(42.5, 21.5),
   ),
 ];
 
@@ -45,6 +40,8 @@ class _ExamScheduleScreenState extends State<ExamScheduleScreen> {
   late DateTime _selectedDay = DateTime.now();
 
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  late GoogleMapController mapController;
+  late Set<Marker> markers;
 
   @override
   void initState() {
@@ -57,6 +54,15 @@ class _ExamScheduleScreenState extends State<ExamScheduleScreen> {
       android: initializationSettingsAndroid,
     );
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    markers = Set<Marker>.from(_examSchedules.map((schedule) => Marker(
+          markerId: MarkerId(schedule.subjectName),
+          position: schedule.location,
+          infoWindow: InfoWindow(
+            title: schedule.subjectName,
+            snippet:
+                DateFormat('MMMM dd, yyyy hh:mm a').format(schedule.dateTime),
+          ),
+        )));
   }
 
   Future<void> _scheduleNotification(ExamSchedule examSchedule) async {
@@ -93,6 +99,19 @@ class _ExamScheduleScreenState extends State<ExamScheduleScreen> {
       appBar: AppBar(
         title: Text('Exam Schedules'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.map),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MapWidget(
+                    markers: markers,
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.add),
             onPressed: () {
@@ -174,10 +193,23 @@ class _ExamScheduleScreenState extends State<ExamScheduleScreen> {
           onExamAdded: (newExamSchedule) {
             setState(() {
               examSchedules.add(newExamSchedule);
-              // Schedule the exam reminder notification
               _scheduleNotification(newExamSchedule);
               _updateExamList();
             });
+          },
+          onSelectLocation: () async {
+            // Add a callback for selecting location
+            LatLng? selectedLocation = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LocationSelectionScreen(),
+              ),
+            );
+
+            // Handle the selected location
+            if (selectedLocation != null) {
+              // Do something with the selected location
+            }
           },
         );
       },
@@ -191,74 +223,9 @@ class AddExamDialog extends StatelessWidget {
   final TextEditingController timeController = TextEditingController();
 
   final Function(ExamSchedule) onExamAdded;
+  final Function() onSelectLocation;
 
-  AddExamDialog({required this.onExamAdded});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Add Exam Schedule'),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: subjectController,
-              decoration: InputDecoration(
-                labelText: 'Subject Name',
-              ),
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () async {
-                final selectedDateTime = await _selectDateTime(context);
-                if (selectedDateTime != null) {
-                  dateController.text =
-                      DateFormat('MMMM dd, yyyy').format(selectedDateTime);
-                  timeController.text =
-                      DateFormat('hh:mm a').format(selectedDateTime);
-                }
-              },
-              child: Text('Select Date and Time'),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (subjectController.text.isNotEmpty &&
-                dateController.text.isNotEmpty &&
-                timeController.text.isNotEmpty) {
-              final dateTime = DateFormat('MMMM dd, yyyy hh:mm a')
-                  .parse('${dateController.text} ${timeController.text}');
-              final newExamSchedule = ExamSchedule(
-                subjectName: subjectController.text,
-                dateTime: dateTime,
-              );
-
-              onExamAdded(newExamSchedule);
-              Navigator.pop(context);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Please fill in all fields.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
-          },
-          child: Text('Add Exam Schedule'),
-        ),
-      ],
-    );
-  }
+  AddExamDialog({required this.onExamAdded, required this.onSelectLocation});
 
   Future<DateTime?> _selectDateTime(BuildContext context) async {
     return await showDatePicker(
@@ -288,5 +255,109 @@ class AddExamDialog extends StatelessWidget {
         return null;
       }
     });
+  }
+
+  Future<LatLng?> _selectLocation(BuildContext context) async {
+    Completer<LatLng?> completer = Completer();
+    LatLng? selectedLocation;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationSelectionScreen(),
+      ),
+    ).then((value) {
+      selectedLocation = value;
+      completer.complete(selectedLocation);
+    });
+
+    return completer.future;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Add Exam Schedule'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: subjectController,
+              decoration: InputDecoration(
+                labelText: 'Subject Name',
+              ),
+            ),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: () async {
+                final selectedDateTime = await _selectDateTime(context);
+                if (selectedDateTime != null) {
+                  dateController.text =
+                      DateFormat('MMMM dd, yyyy').format(selectedDateTime);
+                  timeController.text =
+                      DateFormat('hh:mm a').format(selectedDateTime);
+                }
+              },
+              child: Text('Select Date and Time'),
+            ),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: () async {
+                final selectedLocation = await _selectLocation(context);
+                if (selectedLocation != null) {
+                  final dateTime = DateFormat('MMMM dd, yyyy hh:mm a')
+                      .parse('${dateController.text} ${timeController.text}');
+                  final newExamSchedule = ExamSchedule(
+                    subjectName: subjectController.text,
+                    dateTime: dateTime,
+                    location: selectedLocation,
+                    locationReminder: true, // Set location reminder
+                  );
+
+                  onExamAdded(newExamSchedule);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Select Location'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (subjectController.text.isNotEmpty &&
+                dateController.text.isNotEmpty &&
+                timeController.text.isNotEmpty) {
+              final dateTime = DateFormat('MMMM dd, yyyy hh:mm a')
+                  .parse('${dateController.text} ${timeController.text}');
+              final newExamSchedule = ExamSchedule(
+                subjectName: subjectController.text,
+                dateTime: dateTime,
+                location: LatLng(42.004186212873655, 21.409531941596985),
+              );
+
+              onExamAdded(newExamSchedule);
+              Navigator.pop(context);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please fill in all fields.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: Text('Add Exam Schedule'),
+        ),
+      ],
+    );
   }
 }

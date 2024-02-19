@@ -1,6 +1,15 @@
-class ExamSchedule {
-  final String subjectName;
-  final DateTime dateTime;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-  ExamSchedule({required this.subjectName, required this.dateTime});
+class ExamSchedule {
+  late String subjectName;
+  late DateTime dateTime;
+  late LatLng location;
+  late bool locationReminder;
+
+  ExamSchedule({
+    required this.subjectName,
+    required this.dateTime,
+    required this.location,
+    this.locationReminder = false,
+  });
 }
